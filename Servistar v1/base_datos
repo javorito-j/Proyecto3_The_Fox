@@ -1,0 +1,307 @@
+-- Base de datos para Taller Automotriz Servistar
+CREATE DATABASE ServistarDB;
+USE ServistarDB;
+
+-- Tabla de roles de usuarios
+CREATE TABLE Roles (
+    id_rol INT PRIMARY KEY AUTO_INCREMENT,
+    nombre_rol VARCHAR(50) NOT NULL,
+    descripcion TEXT
+);
+
+-- Tabla de usuarios del sistema
+CREATE TABLE Usuarios (
+    id_usuario INT PRIMARY KEY AUTO_INCREMENT,
+    id_rol INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    telefono VARCHAR(15),
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo',
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_rol) REFERENCES Roles(id_rol)
+);
+
+-- Tabla de registro de accesos (Historia de Usuario 5)
+CREATE TABLE LogsAcceso (
+    id_log INT PRIMARY KEY AUTO_INCREMENT,
+    id_usuario INT NOT NULL,
+    fecha_hora_login DATETIME DEFAULT CURRENT_TIMESTAMP,
+    fecha_hora_logout DATETIME,
+    ip_conexion VARCHAR(45),
+    FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario)
+);
+
+-- Tabla de clientes
+CREATE TABLE Clientes (
+    id_cliente INT PRIMARY KEY AUTO_INCREMENT,
+    nombre VARCHAR(100) NOT NULL,
+    email VARCHAR(100),
+    telefono VARCHAR(15),
+    direccion TEXT,
+    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla de vehículos
+CREATE TABLE Vehiculos (
+    id_vehiculo INT PRIMARY KEY AUTO_INCREMENT,
+    id_cliente INT NOT NULL,
+    placa VARCHAR(20) UNIQUE NOT NULL,
+    marca VARCHAR(50),
+    modelo VARCHAR(50),
+    año INT,
+    color VARCHAR(30),
+    vin VARCHAR(50),
+    FOREIGN KEY (id_cliente) REFERENCES Clientes(id_cliente)
+);
+
+-- Tabla de categorías de repuestos
+CREATE TABLE CategoriasRepuestos (
+    id_categoria INT PRIMARY KEY AUTO_INCREMENT,
+    nombre_categoria VARCHAR(100) NOT NULL,
+    descripcion TEXT
+);
+
+-- Tabla de repuestos (Historia de Usuario 7, 8, 9, 10)
+CREATE TABLE Repuestos (
+    id_repuesto INT PRIMARY KEY AUTO_INCREMENT,
+    id_categoria INT NOT NULL,
+    codigo_repuesto VARCHAR(50) UNIQUE NOT NULL,
+    nombre_repuesto VARCHAR(200) NOT NULL,
+    marca_repuesto VARCHAR(100),
+    descripcion TEXT,
+    precio_unitario DECIMAL(10,2) NOT NULL,
+    stock_actual INT DEFAULT 0,
+    stock_minimo INT DEFAULT 5,
+    estado ENUM('activo', 'inactivo') DEFAULT 'activo',
+    FOREIGN KEY (id_categoria) REFERENCES CategoriasRepuestos(id_categoria)
+);
+
+-- Tabla de órdenes de servicio
+CREATE TABLE OrdenesServicio (
+    id_orden INT PRIMARY KEY AUTO_INCREMENT,
+    id_vehiculo INT NOT NULL,
+    id_mecanico INT NOT NULL,
+    fecha_entrada DATETIME DEFAULT CURRENT_TIMESTAMP,
+    fecha_salida_estimada DATE,
+    fecha_salida_real DATETIME,
+    descripcion_problema TEXT,
+    estado ENUM('pendiente', 'en_proceso', 'completado', 'entregado') DEFAULT 'pendiente',
+    FOREIGN KEY (id_vehiculo) REFERENCES Vehiculos(id_vehiculo),
+    FOREIGN KEY (id_mecanico) REFERENCES Usuarios(id_usuario)
+);
+
+-- Tabla de consumo de repuestos (Historia de Usuario 8)
+CREATE TABLE ConsumoRepuestos (
+    id_consumo INT PRIMARY KEY AUTO_INCREMENT,
+    id_orden INT NOT NULL,
+    id_repuesto INT NOT NULL,
+    id_mecanico INT NOT NULL,
+    cantidad INT NOT NULL,
+    fecha_consumo DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_orden) REFERENCES OrdenesServicio(id_orden),
+    FOREIGN KEY (id_repuesto) REFERENCES Repuestos(id_repuesto),
+    FOREIGN KEY (id_mecanico) REFERENCES Usuarios(id_usuario)
+);
+
+-- Tabla de control de calidad (Historia de Usuario 1)
+CREATE TABLE ControlCalidad (
+    id_control INT PRIMARY KEY AUTO_INCREMENT,
+    id_orden INT NOT NULL,
+    id_inspector INT NOT NULL,
+    fecha_verificacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    resultado ENUM('aprobado', 'requiere_correccion') NOT NULL,
+    observaciones TEXT,
+    FOREIGN KEY (id_orden) REFERENCES OrdenesServicio(id_orden),
+    FOREIGN KEY (id_inspector) REFERENCES Usuarios(id_usuario)
+);
+
+-- Tabla de checklist de calidad
+CREATE TABLE ChecklistCalidad (
+    id_checklist INT PRIMARY KEY AUTO_INCREMENT,
+    id_control INT NOT NULL,
+    item VARCHAR(200) NOT NULL,
+    cumplido BOOLEAN DEFAULT FALSE,
+    observaciones TEXT,
+    FOREIGN KEY (id_control) REFERENCES ControlCalidad(id_control)
+);
+
+-- Tabla de pagos (Historia de Usuario 2)
+CREATE TABLE Pagos (
+    id_pago INT PRIMARY KEY AUTO_INCREMENT,
+    id_orden INT NOT NULL,
+    id_cajero INT NOT NULL,
+    numero_recibo VARCHAR(50) UNIQUE NOT NULL,
+    monto_total DECIMAL(10,2) NOT NULL,
+    fecha_pago DATETIME DEFAULT CURRENT_TIMESTAMP,
+    metodo_pago ENUM('efectivo', 'tarjeta', 'transferencia') DEFAULT 'efectivo',
+    estado ENUM('pendiente', 'completado') DEFAULT 'completado',
+    FOREIGN KEY (id_orden) REFERENCES OrdenesServicio(id_orden),
+    FOREIGN KEY (id_cajero) REFERENCES Usuarios(id_usuario)
+);
+
+-- Tabla de herramientas (Historia de Usuario 3)
+CREATE TABLE Herramientas (
+    id_herramienta INT PRIMARY KEY AUTO_INCREMENT,
+    codigo_herramienta VARCHAR(50) UNIQUE NOT NULL,
+    nombre_herramienta VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    estado ENUM('disponible', 'prestada', 'mantenimiento') DEFAULT 'disponible'
+);
+
+-- Tabla de préstamo de herramientas
+CREATE TABLE PrestamosHerramientas (
+    id_prestamo INT PRIMARY KEY AUTO_INCREMENT,
+    id_herramienta INT NOT NULL,
+    id_mecanico INT NOT NULL,
+    id_inspector INT NOT NULL,
+    fecha_prestamo DATETIME DEFAULT CURRENT_TIMESTAMP,
+    fecha_devolucion_estimada DATETIME,
+    fecha_devolucion_real DATETIME,
+    estado ENUM('prestado', 'devuelto', 'atrasado') DEFAULT 'prestado',
+    FOREIGN KEY (id_herramienta) REFERENCES Herramientas(id_herramienta),
+    FOREIGN KEY (id_mecanico) REFERENCES Usuarios(id_usuario),
+    FOREIGN KEY (id_inspector) REFERENCES Usuarios(id_usuario)
+);
+
+-- Tabla de ventas de repuestos (Historia de Usuario 6)
+CREATE TABLE VentasRepuestos (
+    id_venta INT PRIMARY KEY AUTO_INCREMENT,
+    id_vendedor INT NOT NULL,
+    id_cliente INT,
+    numero_comprobante VARCHAR(50) UNIQUE NOT NULL,
+    fecha_venta DATETIME DEFAULT CURRENT_TIMESTAMP,
+    monto_total DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (id_vendedor) REFERENCES Usuarios(id_usuario),
+    FOREIGN KEY (id_cliente) REFERENCES Clientes(id_cliente)
+);
+
+-- Tabla de detalle de ventas
+CREATE TABLE DetalleVentas (
+    id_detalle INT PRIMARY KEY AUTO_INCREMENT,
+    id_venta INT NOT NULL,
+    id_repuesto INT NOT NULL,
+    cantidad INT NOT NULL,
+    precio_unitario DECIMAL(10,2) NOT NULL,
+    subtotal DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (id_venta) REFERENCES VentasRepuestos(id_venta),
+    FOREIGN KEY (id_repuesto) REFERENCES Repuestos(id_repuesto)
+);
+
+-- Tabla de seguimiento post venta (Historia de Usuario 4)
+CREATE TABLE SeguimientoPostVenta (
+    id_seguimiento INT PRIMARY KEY AUTO_INCREMENT,
+    id_vehiculo INT NOT NULL,
+    id_gestor INT NOT NULL,
+    fecha_contacto DATETIME DEFAULT CURRENT_TIMESTAMP,
+    tipo_contacto ENUM('llamada', 'email', 'presencial') NOT NULL,
+    observaciones TEXT,
+    proximo_contacto DATE,
+    FOREIGN KEY (id_vehiculo) REFERENCES Vehiculos(id_vehiculo),
+    FOREIGN KEY (id_gestor) REFERENCES Usuarios(id_usuario)
+);
+
+-- Tabla de notificaciones (Historia de Usuario 10)
+CREATE TABLE Notificaciones (
+    id_notificacion INT PRIMARY KEY AUTO_INCREMENT,
+    id_usuario INT NOT NULL,
+    tipo_notificacion ENUM('stock_bajo', 'herramienta_atrasada', 'pago_pendiente') NOT NULL,
+    mensaje TEXT NOT NULL,
+    fecha_generada DATETIME DEFAULT CURRENT_TIMESTAMP,
+    leida BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (id_usuario) REFERENCES Usuarios(id_usuario)
+);
+
+-- Insertar datos de ejemplo
+
+-- Roles
+INSERT INTO Roles (nombre_rol, descripcion) VALUES
+('Administrador', 'Acceso completo al sistema'),
+('Mecánico', 'Realiza reparaciones y consume repuestos'),
+('Cajero', 'Procesa pagos y genera recibos'),
+('Inspector Calidad', 'Verifica calidad de reparaciones'),
+('Inspector Herramientas', 'Controla préstamo de herramientas'),
+('Gestor Post Venta', 'Realiza seguimiento a clientes');
+
+-- Usuarios
+INSERT INTO Usuarios (id_rol, nombre, email, password, telefono) VALUES
+(1, 'Carlos Mendoza', 'admin@servistar.com', 'hashed_password', '77712345'),
+(2, 'Juan Pérez', 'juan.perez@servistar.com', 'hashed_password', '77712346'),
+(2, 'María García', 'maria.garcia@servistar.com', 'hashed_password', '77712347'),
+(3, 'Ana López', 'ana.lopez@servistar.com', 'hashed_password', '77712348'),
+(4, 'Roberto Silva', 'roberto.silva@servistar.com', 'hashed_password', '77712349'),
+(5, 'Laura Martínez', 'laura.martinez@servistar.com', 'hashed_password', '77712350'),
+(6, 'Diego Fernández', 'diego.fernandez@servistar.com', 'hashed_password', '77712351');
+
+-- Clientes
+INSERT INTO Clientes (nombre, email, telefono, direccion) VALUES
+('Miguel Ángel Vargas', 'miguel.vargas@email.com', '77788801', 'Av. Arce 1234, La Paz'),
+('Sofia Rodriguez', 'sofia.rodriguez@email.com', '77788802', 'Calle Jaén 567, La Paz'),
+('Carlos Andrade', 'carlos.andrade@email.com', '77788803', 'Av. 16 de Julio 890, El Alto'),
+('Patricia Salazar', 'patricia.salazar@email.com', '77788804', 'Zona Sur, Calle 5 Oeste');
+
+-- Vehículos
+INSERT INTO Vehiculos (id_cliente, placa, marca, modelo, año, color, vin) VALUES
+(1, '1234ABC', 'Toyota', 'Corolla', 2020, 'Blanco', '1HGCM82633A123456'),
+(1, '5678DEF', 'Nissan', 'Sentra', 2019, 'Negro', '3N1AB51D89L123457'),
+(2, '9012GHI', 'Hyundai', 'Tucson', 2021, 'Rojo', 'KM8J33A26LU123458'),
+(3, '3456JKL', 'Toyota', 'Hilux', 2022, 'Azul', 'MR0FZ23G102123459'),
+(4, '7890MNO', 'Kia', 'Sportage', 2020, 'Gris', 'KNDPMCAC5L7123460');
+
+-- Categorías de repuestos
+INSERT INTO CategoriasRepuestos (nombre_categoria, descripcion) VALUES
+('Filtros', 'Filtros de aceite, aire, combustible'),
+('Frenos', 'Pastillas, discos, líquido de frenos'),
+('Motor', 'Bujías, correas, aceites'),
+('Suspensión', 'Amortiguadores, rótulas'),
+('Eléctrico', 'Baterías, alternadores, bujías');
+
+-- Repuestos
+INSERT INTO Repuestos (id_categoria, codigo_repuesto, nombre_repuesto, marca_repuesto, precio_unitario, stock_actual, stock_minimo) VALUES
+(1, 'FIL-001', 'Filtro de Aceite', 'Bosch', 45.00, 15, 5),
+(1, 'FIL-002', 'Filtro de Aire', 'Mann Filter', 85.00, 8, 3),
+(2, 'FRE-001', 'Pastillas de Freno Delanteras', 'Brembo', 320.00, 12, 4),
+(2, 'FRE-002', 'Discos de Freno', 'TRW', 480.00, 6, 2),
+(3, 'MOT-001', 'Bujías Iridium', 'NGK', 65.00, 25, 8),
+(3, 'MOT-002', 'Aceite Motor 5W-30', 'Mobil', 180.00, 30, 10),
+(4, 'SUS-001', 'Amortiguador Delantero', 'KYB', 420.00, 4, 2),
+(5, 'ELE-001', 'Batería 12V 60Ah', 'ACDelco', 650.00, 3, 2);
+
+-- Herramientas
+INSERT INTO Herramientas (codigo_herramienta, nombre_herramienta, descripcion) VALUES
+('HERR-001', 'Llave de Torque Digital', 'Llave de torque digital 50-250 Nm'),
+('HERR-002', 'Scanner OBD2', 'Scanner profesional para diagnóstico'),
+('HERR-003', 'Juego de Destornilladores', 'Juego completo de destornilladores'),
+('HERR-004', 'Gato Hidráulico', 'Gato de 2 toneladas capacidad'),
+('HERR-005', 'Llaves Combinadas', 'Juego de llaves combinadas 8-19mm');
+
+-- Órdenes de servicio de ejemplo
+INSERT INTO OrdenesServicio (id_vehiculo, id_mecanico, fecha_entrada, descripcion_problema, estado) VALUES
+(1, 2, '2024-01-15 08:30:00', 'Cambio de aceite y filtros', 'completado'),
+(2, 3, '2024-01-16 09:15:00', 'Revisión de frenos y suspensión', 'en_proceso'),
+(3, 2, '2024-01-17 10:00:00', 'Problemas eléctricos y cambio de batería', 'pendiente');
+
+-- Consumo de repuestos
+INSERT INTO ConsumoRepuestos (id_orden, id_repuesto, id_mecanico, cantidad) VALUES
+(1, 1, 2, 1),  -- Filtro de aceite
+(1, 6, 2, 1),  -- Aceite motor
+(2, 3, 3, 2),  -- Pastillas de freno
+(2, 4, 3, 2);  -- Discos de freno
+
+-- Control de calidad
+INSERT INTO ControlCalidad (id_orden, id_inspector, resultado, observaciones) VALUES
+(1, 5, 'aprobado', 'Trabajo realizado según estándares');
+
+-- Pagos
+INSERT INTO Pagos (id_orden, id_cajero, numero_recibo, monto_total, metodo_pago) VALUES
+(1, 4, 'REC-2024-0001', 250.00, 'efectivo');
+
+-- Préstamo de herramientas
+INSERT INTO PrestamosHerramientas (id_herramienta, id_mecanico, id_inspector, fecha_prestamo) VALUES
+(1, 2, 6, '2024-01-15 08:45:00'),
+(2, 3, 6, '2024-01-16 09:30:00');
+
+-- Notificaciones de stock bajo
+INSERT INTO Notificaciones (id_usuario, tipo_notificacion, mensaje) VALUES
+(1, 'stock_bajo', 'El repuesto Batería 12V 60Ah tiene stock bajo: 3 unidades'),
+(1, 'stock_bajo', 'El repuesto Amortiguador Delantero tiene stock bajo: 4 unidades');
